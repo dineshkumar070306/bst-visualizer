@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorting Visualizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; }
+
+  header { background: #fff; border-bottom: 1px solid #e0ddd6; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 500; }
+  .algo-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .algo-btn { padding: 6px 14px; border: 1px solid #d0cdc6; background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all .15s; }
+  .algo-btn:hover { background: #f0ede6; }
+  .algo-btn.active { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+
+  .controls { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: #fff; border-bottom: 1px solid #e0ddd6; flex-wrap: wrap; }
+  .ctrl-group { display: flex; align-items: center; gap: 8px; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 110px; accent-color: #1a1a18; }
+  .val { font-size: 13px; font-weight: 500; min-width: 28px; }
+  .btn { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #d0cdc6; background: #fff; transition: all .15s; }
+  .btn:hover { background: #f0ede6; }
+  .btn.primary { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+  .btn.primary:hover { background: #333; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .stats { display: flex; gap: 20px; padding: 10px 24px; background: #fafaf8; border-bottom: 1px solid #e0ddd6; flex-wrap: wrap; }
+  .stat { font-size: 13px; color: #555; }
+  .stat span { font-weight: 500; color: #1a1a18; }
+
+  #canvas-wrap { padding: 20px 24px; }
+  canvas { display: block; width: 100%; border-radius: 10px; background: #fff; border: 1px solid #e0ddd6; }
+
+  .legend { display: flex; gap: 16px; padding: 10px 24px 16px; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+  .leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  .info-box { margin: 0 24px 20px; background: #fff; border: 1px solid #e0ddd6; border-radius: 10px; padding: 14px 18px; }
+  .info-box h3 { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+  .info-card { background: #f5f5f3; border-radius: 8px; padding: 10px 12px; }
+  .info-card .lbl { font-size: 11px; color: #888; margin-bottom: 2px; }
+  .info-card .val2 { font-size: 15px; font-weight: 500; }
+  #algo-desc { font-size: 13px; color: #555; line-height: 1.6; }
+
+  #status { padding: 8px 24px; font-size: 13px; font-weight: 500; color: #555; min-height: 32px; }
+  .done { color: #0F6E56 !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sorting visualizer</h1>
+  <div class="algo-btns">
+    <button class="algo-btn active" data-algo="bubble">Bubble</button>
+    <button class="algo-btn" data-algo="insertion">Insertion</button>
+    <button class="algo-btn" data-algo="selection">Selection</button>
+    <button class="algo-btn" data-algo="merge">Merge</button>
+    <button class="algo-btn" data-algo="quick">Quick</button>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Array size</label>
+    <input type="range" id="sizeSlider" min="10" max="100" value="40" step="1">
+    <span class="val" id="sizeVal">40</span>
+  </div>
+  <div class="ctrl-group">
+    <label>Speed</label>
+    <input type="range" id="speedSlider" min="1" max="10" value="5" step="1">
+    <span class="val" id="speedVal">5</span>
+  </div>
+  <button class="btn" id="genBtn">New array</button>
+  <button class="btn primary" id="sortBtn">Sort</button>
+  <button class="btn" id="stopBtn" disabled>Stop</button>
+</div>
+
+<div class="stats">
+  <div class="stat">Comparisons: <span id="cmpCount">0</span></div>
+  <div class="stat">Swaps: <span id="swpCount">0</span></div>
+  <div class="stat">Array accesses: <span id="accCount">0</span></div>
+  <div class="stat">Time elapsed: <span id="timeEl">0ms</span></div>
+</div>
+
+<div id="status">Press "Sort" to start.</div>
+
+<div id="canvas-wrap">
+  <canvas id="viz" height="320"></canvas>
+</div>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Unsorted</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div>Comparing</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>Swapping</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>Sorted</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#7F77DD"></div>Pivot</div>
+</div>
+
+<div class="info-box">
+  <h3 id="algo-name">Bubble sort</h3>
+  <p id="algo-desc">Repeatedly steps through the list, compares adjacent elements and swaps them if they're in the wrong order. Simple but slow for large arrays.</p>
+  <div class="info-grid">
+    <div class="info-card"><div class="lbl">Best case</div><div class="val2" id="best">O(n)</div></div>
+    <div class="info-card"><div class="lbl">Average case</div><div class="val2" id="avg">O(n²)</div></div>
+    <div class="info-card"><div class="lbl">Worst case</div><div class="val2" id="worst">O(n²)</div></div>
+    <div class="info-card"><div class="lbl">Space</div><div class="val2" id="space">O(1)</div></div>
+    <div class="info-card"><div class="lbl">Stable</div><div class="val2" id="stable">Yes</div></div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('viz');
+const ctx = canvas.getContext('2d');
+const W = () => canvas.offsetWidth;
+const H = () => canvas.height;
+
+let arr = [], highlights = {}, sortedIdx = new Set();
+let comparisons = 0, swaps = 0, accesses = 0;
+let running = false, stopFlag = false;
+let currentAlgo = 'bubble';
+let startTime = 0;
+
+const algoInfo = {
+  bubble:    { name:'Bubble sort',    desc:'Repeatedly steps through the list, compares adjacent elements and swaps them if in the wrong order. Simple but slow for large arrays.', best:'O(n)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', stable:'Yes' },
+  insertion: { name:'Insertion sort', desc:'Builds the sorted array one item at a time by inserting each new element into its correct position. Efficient for small or nearly sorted arrays.', best:'O(n)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', stable:'Yes' },
+  selection: { name:'Selection sort', desc:'Repeatedly selects the minimum element from the unsorted portion and places it at the beginning. Always O(n²) regardless of input.', best:'O(n²)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', stable:'No' },
+  merge:     { name:'Merge sort',     desc:'Divides the array in half, recursively sorts both halves, then merges them. Efficient and stable but uses extra memory.', best:'O(n log n)', avg:'O(n log n)', worst:'O(n log n)', space:'O(n)', stable:'Yes' },
+  quick:     { name:'Quick sort',     desc:'Picks a pivot element and partitions the array around it. Very fast in practice. Worst case with bad pivot choice is O(n²).', best:'O(n log n)', avg:'O(n log n)', worst:'O(n²)', space:'O(log n)', stable:'No' },
+};
+
+function genArray() {
+  const n = +document.getElementById('sizeSlider').value;
+  arr = Array.from({length: n}, () => Math.floor(Math.random() * 90) + 10);
+  highlights = {}; sortedIdx = new Set();
+  comparisons = 0; swaps = 0; accesses = 0;
+  updateStats();
+  document.getElementById('status').textContent = 'Press "Sort" to start.';
+  document.getElementById('status').className = '';
+  draw();
+}
+
+function draw() {
+  canvas.width = canvas.offsetWidth;
+  const n = arr.length;
+  const barW = Math.max(2, (W() - n * 2) / n);
+  const gap = (W() - barW * n) / (n + 1);
+  ctx.clearRect(0, 0, W(), H());
+  for (let i = 0; i < n; i++) {
+    const x = gap + i * (barW + gap / n * (n / (n+1)) + 2);
+    const bx = i * (W() / n);
+    const bw = W() / n - 1;
+    const bh = (arr[i] / 100) * (H() - 20);
+    const by = H() - bh - 5;
+    let color = '#378ADD';
+    if (sortedIdx.has(i)) color = '#1D9E75';
+    if (highlights[i] === 'compare') color = '#E24B4A';
+    if (highlights[i] === 'swap')    color = '#EF9F27';
+    if (highlights[i] === 'pivot')   color = '#7F77DD';
+    if (highlights[i] === 'sorted')  color = '#1D9E75';
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 2);
+    ctx.fill();
+    if (bw > 14) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.min(11, bw - 2)}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.fillText(arr[i], bx + bw / 2, by + 14);
+    }
+  }
+}
+
+function delay() {
+  const speed = +document.getElementById('speedSlider').value;
+  const ms = Math.max(5, 600 / (speed * speed));
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function updateStats() {
+  document.getElementById('cmpCount').textContent = comparisons;
+  document.getElementById('swpCount').textContent = swaps;
+  document.getElementById('accCount').textContent = accesses;
+  if (startTime) document.getElementById('timeEl').textContent = (Date.now() - startTime) + 'ms';
+}
+
+async function markCompare(i, j) {
+  comparisons++; accesses += 2;
+  highlights = {[i]: 'compare', [j]: 'compare'};
+  draw(); updateStats();
+  await delay();
+  if (stopFlag) throw 'stopped';
+}
+
+async function markSwap(i, j) {
+  swaps++; accesses += 4;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  highlights = {[i]: 'swap', [j]: 'swap'};
+  draw(); updateStats();
+  await delay();
+  if (stopFlag) throw 'stopped';
+}
+
+async function bubbleSort() {
+  const n = arr.length;
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = 0; j < n - i - 1; j++) {
+      await markCompare(j, j+1);
+      if (arr[j] > arr[j+1]) await markSwap(j, j+1);
+    }
+    sortedIdx.add(n - 1 - i);
+    highlights = {};
+  }
+  sortedIdx.add(0);
+}
+
+async function insertionSort() {
+  const n = arr.length;
+  sortedIdx.add(0);
+  for (let i = 1; i < n; i++) {
+    let j = i;
+    while (j > 0) {
+      await markCompare(j, j-1);
+      if (arr[j] < arr[j-1]) { await markSwap(j, j-1); j--; }
+      else break;
+    }
+    sortedIdx.add(i);
+    highlights = {};
+  }
+}
+
+async function selectionSort() {
+  const n = arr.length;
+  for (let i = 0; i < n - 1; i++) {
+    let minIdx = i;
+    highlights = {[i]: 'pivot'};
+    for (let j = i + 1; j < n; j++) {
+      await markCompare(minIdx, j);
+      if (arr[j] < arr[minIdx]) { minIdx = j; }
+      highlights = {[minIdx]: 'pivot'};
+    }
+    if (minIdx !== i) await markSwap(i, minIdx);
+    sortedIdx.add(i);
+    highlights = {};
+  }
+  sortedIdx.add(arr.length - 1);
+}
+
+async function mergeSort(l, r) {
+  if (l >= r) return;
+  const m = Math.floor((l + r) / 2);
+  await mergeSort(l, m);
+  await mergeSort(m+1, r);
+  await mergeParts(l, m, r);
+}
+
+async function mergeParts(l, m, r) {
+  const left = arr.slice(l, m+1), right = arr.slice(m+1, r+1);
+  let i = 0, j = 0, k = l;
+  while (i < left.length && j < right.length) {
+    comparisons++; accesses += 2;
+    highlights = {[k]: 'compare'};
+    draw(); updateStats(); await delay();
+    if (stopFlag) throw 'stopped';
+    if (left[i] <= right[j]) { arr[k++] = left[i++]; }
+    else { arr[k++] = right[j++]; swaps++; }
+    accesses += 2;
+    highlights = {[k-1]: 'swap'};
+    draw(); updateStats(); await delay();
+    if (stopFlag) throw 'stopped';
+  }
+  while (i < left.length) { arr[k++] = left[i++]; accesses++; }
+  while (j < right.length) { arr[k++] = right[j++]; accesses++; }
+  for (let x = l; x <= r; x++) sortedIdx.add(x);
+  highlights = {}; draw();
+}
+
+async function quickSort(l, r) {
+  if (l >= r) { if (l === r) sortedIdx.add(l); return; }
+  const p = await partition(l, r);
+  sortedIdx.add(p);
+  await quickSort(l, p-1);
+  await quickSort(p+1, r);
+}
+
+async function partition(l, r) {
+  const pivot = arr[r];
+  highlights = {[r]: 'pivot'};
+  let i = l - 1;
+  for (let j = l; j < r; j++) {
+    await markCompare(j, r);
+    highlights = {[r]: 'pivot'};
+    if (arr[j] <= pivot) { i++; await markSwap(i, j); highlights = {[r]: 'pivot'}; }
+  }
+  await markSwap(i+1, r);
+  return i + 1;
+}
+
+async function runSort() {
+  if (running) return;
+  running = true; stopFlag = false;
+  sortedIdx = new Set(); highlights = {};
+  comparisons = 0; swaps = 0; accesses = 0;
+  startTime = Date.now();
+  document.getElementById('sortBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('status').textContent = `Running ${algoInfo[currentAlgo].name}...`;
+  document.getElementById('status').className = '';
+
+  const timer = setInterval(() => {
+    document.getElementById('timeEl').textContent = (Date.now() - startTime) + 'ms';
+  }, 50);
+
+  try {
+    if (currentAlgo === 'bubble')    await bubbleSort();
+    if (currentAlgo === 'insertion') await insertionSort();
+    if (currentAlgo === 'selection') await selectionSort();
+    if (currentAlgo === 'merge')     await mergeSort(0, arr.length - 1);
+    if (currentAlgo === 'quick')     await quickSort(0, arr.length - 1);
+
+    highlights = {};
+    for (let i = 0; i < arr.length; i++) sortedIdx.add(i);
+    draw();
+    document.getElementById('status').textContent = `Done! Sorted ${arr.length} elements.`;
+    document.getElementById('status').className = 'done';
+  } catch(e) {
+    document.getElementById('status').textContent = 'Stopped.';
+    highlights = {}; draw();
+  }
+  clearInterval(timer);
+  updateStats();
+  running = false;
+  document.getElementById('sortBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('genBtn').disabled = false;
+}
+
+function setAlgo(algo) {
+  currentAlgo = algo;
+  document.querySelectorAll('.algo-btn').forEach(b => b.classList.toggle('active', b.dataset.algo === algo));
+  const info = algoInfo[algo];
+  document.getElementById('algo-name').textContent = info.name;
+  document.getElementById('algo-desc').textContent = info.desc;
+  document.getElementById('best').textContent   = info.best;
+  document.getElementById('avg').textContent    = info.avg;
+  document.getElementById('worst').textContent  = info.worst;
+  document.getElementById('space').textContent  = info.space;
+  document.getElementById('stable').textContent = info.stable;
+  if (!running) genArray();
+}
+
+document.querySelectorAll('.algo-btn').forEach(b => b.addEventListener('click', () => setAlgo(b.dataset.algo)));
+document.getElementById('genBtn').addEventListener('click', genArray);
+document.getElementById('sortBtn').addEventListener('click', runSort);
+document.getElementById('stopBtn').addEventListener('click', () => { stopFlag = true; });
+document.getElementById('sizeSlider').addEventListener('input', e => { document.getElementById('sizeVal').textContent = e.target.value; if (!running) genArray(); });
+document.getElementById('speedSlider').addEventListener('input', e => { document.getElementById('speedVal').textContent = e.target.value; });
+window.addEventListener('resize', draw);
+
+setAlgo('bubble');
+</script>
+</body>
+</html>
